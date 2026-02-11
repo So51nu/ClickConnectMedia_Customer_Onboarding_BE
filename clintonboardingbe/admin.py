@@ -24,6 +24,8 @@
 #         url = reverse("admin_application_pdf", kwargs={"pk": obj.pk})
 #         return format_html('<a href="{}" target="_blank">Download PDF</a>', url)
 #     pdf_link.short_description = "PDF"
+
+
 from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
@@ -42,6 +44,16 @@ class CompanyProfileAdmin(admin.ModelAdmin):
             )
         return "-"
     signature_preview.short_description = "Signature"
+
+    def stamp_preview(self, obj):
+        if obj.stamp_image:
+            return format_html(
+                '<img src="{}" style="height:40px;border-radius:6px;border:1px solid #ddd;padding:2px;background:#fff;" />',
+                obj.stamp_image.url,
+            )
+        return "-"
+
+    stamp_preview.short_description = "Stamp"
 
 
 @admin.register(ClientApplication)

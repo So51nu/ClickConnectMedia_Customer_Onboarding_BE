@@ -1,5 +1,6 @@
+# views.py
 from django.contrib.auth import authenticate
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -21,7 +22,6 @@ def create_application(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     app = serializer.save()
-
     return Response(
         {
             "id": app.id,
@@ -35,8 +35,7 @@ def create_application(request):
 @api_view(["GET"])
 def download_application_pdf(request, pk: int):
     """
-    Public PDF download (simple).
-    If you want security later, we can add token/otp.
+    Public PDF download.
     """
     try:
         app = ClientApplication.objects.get(pk=pk)
@@ -45,8 +44,8 @@ def download_application_pdf(request, pk: int):
 
     company = CompanyProfile.objects.first()
     company_sig_path = company.signature_image.path if company and company.signature_image else None
-
-    pdf_bytes = build_application_pdf(app, company_signature_path=company_sig_path)
+    company_stamp_path = company.stamp_image.path if company and company.stamp_image else None
+    pdf_bytes = build_application_pdf(app, company_signature_path=company_sig_path,company_stamp_path=company_stamp_path, )
     resp = HttpResponse(pdf_bytes, content_type="application/pdf")
     resp["Content-Disposition"] = f'attachment; filename="application_{app.id}.pdf"'
     return resp
@@ -68,10 +67,7 @@ def admin_login(request):
         return Response({"detail": "Invalid credentials"}, status=401)
 
     refresh = RefreshToken.for_user(user)
-    return Response(
-        {"access": str(refresh.access_token), "refresh": str(refresh)},
-        status=200
-    )
+    return Response({"access": str(refresh.access_token), "refresh": str(refresh)}, status=200)
 
 
 @api_view(["GET"])
@@ -83,15 +79,17 @@ def admin_list_applications(request):
     qs = ClientApplication.objects.order_by("-created_at")[:500]
     data = []
     for a in qs:
-        data.append({
-            "id": a.id,
-            "created_at": a.created_at.isoformat(),
-            "orgName": a.orgName,
-            "orgPAN": a.orgPAN,
-            "orgEmail": a.orgEmail,
-            "authName": a.authName,
-            "pdf_url": f"/api/admin/applications/{a.id}/pdf/",
-        })
+        data.append(
+            {
+                "id": a.id,
+                "created_at": a.created_at.isoformat(),
+                "orgName": a.orgName,
+                "orgPAN": a.orgPAN,
+                "orgEmail": a.orgEmail,
+                "authName": a.authName,
+                "pdf_url": f"/api/admin/applications/{a.id}/pdf/",
+            }
+        )
     return Response(data)
 
 
@@ -110,7 +108,6 @@ def admin_application_detail(request, pk: int):
     out = serializer.data
     out["services"] = app.services_list()
 
-    # Return absolute media URLs if needed by frontend
     def file_url(f):
         try:
             return f.url if f else None
@@ -140,17 +137,15 @@ def admin_application_pdf(request, pk: int):
 
     company = CompanyProfile.objects.first()
     company_sig_path = company.signature_image.path if company and company.signature_image else None
-
-    pdf_bytes = build_application_pdf(app, company_signature_path=company_sig_path)
+    company_stamp_path = company.stamp_image.path if company and company.stamp_image else None
+    pdf_bytes = build_application_pdf(app, company_signature_path=company_sig_path,company_stamp_path=company_stamp_path, )
     resp = HttpResponse(pdf_bytes, content_type="application/pdf")
     resp["Content-Disposition"] = f'attachment; filename="application_{app.id}.pdf"'
     return resp
 
+
 @api_view(["GET"])
 def public_company_signature(request):
-    """
-    Public endpoint: returns company signature image URL (if uploaded by admin)
-    """
     company = CompanyProfile.objects.first()
     if not company or not company.signature_image:
         return Response(

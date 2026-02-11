@@ -6,7 +6,7 @@ class CompanyProfile(models.Model):
     """
     company_name = models.CharField(max_length=255, default="Click Connect Media Pvt. Ltd.")
     signature_image = models.ImageField(upload_to="company/signatures/", null=True, blank=True)
-
+    stamp_image = models.ImageField(upload_to="company/stamps/", null=True, blank=True)
     def __str__(self):
         return self.company_name
 
